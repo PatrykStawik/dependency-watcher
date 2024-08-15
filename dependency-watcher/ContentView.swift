@@ -91,17 +91,15 @@ struct ContentView: View {
                 let contents = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey], options: .skipsHiddenFiles)
                 
                 let foundFolderInfos = contents.compactMap { folderURL in
-                    if folderURL.hasDirectoryPath {
-                        let nodeModulesURL = folderURL.appendingPathComponent("node_modules")
-                        if FileManager.default.fileExists(atPath: nodeModulesURL.path) {
-                            let sizeInBytes = calculateFolderSize(at: nodeModulesURL)
-                            let sizeInMB = sizeInBytes / (1024 * 1024)
-                            return (name: folderURL.lastPathComponent, url: folderURL, size: sizeInMB)
-                        }
+                    let nodeModulesURL = folderURL.appendingPathComponent("node_modules")
+                    if FileManager.default.fileExists(atPath: nodeModulesURL.path) {
+                        let sizeInBytes = calculateFolderSize(at: nodeModulesURL)
+                        let sizeInMB = sizeInBytes / (1024 * 1024)
+                        return (name: folderURL.lastPathComponent, url: folderURL, size: sizeInMB)
                     }
                     return nil
                 }
-                .sorted(by: { $0.size > $1.size }) // Sortowanie malejące według rozmiaru
+                .sorted(by: { $0.size > $1.size })
 
                 DispatchQueue.main.async {
                     self.folderInfos = foundFolderInfos
@@ -145,14 +143,24 @@ struct ContentView: View {
     }
 
     private func deleteSelectedFolders() {
-        for folderURL in selectedFolders {
+        for folderInfo in folderInfos.filter({ selectedFolders.contains($0.url) }) {
             do {
-                try FileManager.default.removeItem(at: folderURL)
+                let nodeModulesURL = folderInfo.url.appendingPathComponent("node_modules")
+                try FileManager.default.removeItem(at: nodeModulesURL)
             } catch {
-                print("Error deleting folder \(folderURL): \(error.localizedDescription)")
+                print("Error deleting node_modules folder \(folderInfo.url): \(error.localizedDescription)")
+                showErrorAlert(for: folderInfo.url)
             }
         }
         searchForNodeModules(in: selectedDirectory!)
+    }
+
+    private func showErrorAlert(for folderURL: URL) {
+        let alert = NSAlert()
+        alert.messageText = "Error Deleting Folder"
+        alert.informativeText = "Could not delete folder \(folderURL.lastPathComponent) because you don’t have permission to access it."
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 }
 
@@ -160,3 +168,4 @@ struct ContentView: View {
     ContentView()
         .modelContainer(for: Item.self, inMemory: true)
 }
+
